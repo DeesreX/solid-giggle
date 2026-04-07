@@ -43,11 +43,28 @@
   </aside>
 
   <main class="panel-main">
+    <div class="planner-card">
+      <div class="planner-header">
+        <h3>Farm Planner</h3>
+        <small>Find the fastest mission for a target drop</small>
+      </div>
+      <input
+        type="text"
+        id="plannerSearch"
+        class="search-input"
+        placeholder="Type an item name to find best farms (e.g. Neurodes, Khora Chassis)..."
+      >
+      <div id="plannerResults" class="planner-results">
+        <div class="empty-msg">Search an item to see best drop locations.</div>
+      </div>
+    </div>
+
     <div id="missionCard" class="mission-card">
       <button id="mainPinBtn" class="pin-btn">☆</button>
 
       <div id="cardCategory" class="card-category"></div>
       <h2 id="cardTitle" class="card-title"></h2>
+      <div id="missionProgress" class="mission-progress"></div>
 
       <div id="guideAnchor"></div>
       <div id="rotNav" class="rot-nav"></div>

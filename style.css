@@ -295,3 +295,86 @@ table.dataTable.no-footer {
   background: var(--accent);
   color: #fff;
 }
+
+.planner-card {
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+}
+
+.planner-header {
+  margin-bottom: 10px;
+}
+
+.planner-header h3 {
+  margin: 0;
+}
+
+.planner-header small {
+  color: #8b949e;
+}
+
+.planner-results {
+  display: grid;
+  gap: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.planner-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 2%);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.planner-row:hover {
+  border-color: var(--accent);
+}
+
+.planner-row strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.planner-row small {
+  color: #8b949e;
+}
+
+.planner-metrics {
+  display: grid;
+  gap: 3px;
+  text-align: right;
+  font-size: 12px;
+}
+
+.planner-metrics .chance {
+  color: var(--success);
+  font-weight: 700;
+}
+
+.mission-progress {
+  display: flex;
+  justify-content: space-between;
+  margin: 10px 0 14px;
+  padding: 8px 10px;
+  border: 1px solid rgb(63 185 80 / 35%);
+  border-radius: 6px;
+  background: rgb(63 185 80 / 10%);
+  color: #9fe7aa;
+  font-size: 12px;
+}
+
+.empty-msg,
+.empty-pins {
+  color: #8b949e;
+  font-size: 12px;
+}

@@ -9,9 +9,12 @@ $(document).ready(() => {
     planetFilter: '#planetFilter',
     typeFilter: '#typeFilter',
     itemSearch: '#itemSearch',
+    plannerSearch: '#plannerSearch',
+    plannerResults: '#plannerResults',
     locationTable: '#locationTable',
     cardTitle: '#cardTitle',
     cardCategory: '#cardCategory',
+    missionProgress: '#missionProgress',
     guideAnchor: '#guideAnchor',
     rotNav: '#rotNav',
     missionCard: '#missionCard',
@@ -57,6 +60,7 @@ $(document).ready(() => {
       fullData = await response.json();
       setupTable();
       renderPinnedList();
+      renderPlannerResults('');
     } catch (err) {
       console.error('Failed to load data:', err);
       alert('Error: Ensure warframe_data.json is in the same folder.');
@@ -141,6 +145,16 @@ $(document).ready(() => {
     types.forEach((type) => $(SELECTORS.typeFilter).append(new Option(type, type)));
   }
 
+  function parseChancePercent(chanceText) {
+    const match = chanceText.match(/(\d+(?:\.\d+)?)%/);
+    return match ? Number(match[1]) : 0;
+  }
+
+  function getExpectedRuns(chance) {
+    if (!chance) return '—';
+    return `${Math.ceil(100 / chance)} runs`;
+  }
+
   function loadMission(planet, mission) {
     activeMissionID = `${planet}/${mission}`;
     currentMissionSet = fullData.filter((entry) => entry.planet === planet && entry.mission === mission);
@@ -201,6 +215,11 @@ $(document).ready(() => {
 
     const obtainedHtml = obtained.map((entry) => generateRowHtml(entry, true)).join('');
     $(SELECTORS.obtainedDrops).html(obtainedHtml);
+
+    const completion = filtered.length ? Math.round((obtained.length / filtered.length) * 100) : 0;
+    $(SELECTORS.missionProgress).html(
+      `<span>${unobtained.length} items left</span><span>${completion}% complete</span>`
+    );
 
     const shouldShowObtained = !$(SELECTORS.hideObtained).is(':checked') && obtained.length > 0;
     $(SELECTORS.obtainedTable).toggle(shouldShowObtained);
@@ -278,6 +297,47 @@ $(document).ready(() => {
     });
   }
 
+  function renderPlannerResults(query) {
+    const normalized = query.toLowerCase().trim();
+    if (!normalized) {
+      $(SELECTORS.plannerResults).html('<div class="empty-msg">Search an item to see best drop locations.</div>');
+      return;
+    }
+
+    const matches = fullData
+      .filter((entry) => entry.item.toLowerCase().includes(normalized))
+      .map((entry) => {
+        const chance = parseChancePercent(entry.chance);
+        return {
+          ...entry,
+          chancePercent: chance,
+          missionId: `${entry.planet}/${entry.mission}`
+        };
+      })
+      .sort((a, b) => b.chancePercent - a.chancePercent)
+      .slice(0, 12);
+
+    if (!matches.length) {
+      $(SELECTORS.plannerResults).html('<div class="empty-msg">No matching drops found.</div>');
+      return;
+    }
+
+    const html = matches.map((entry) => `
+      <button class="planner-row" data-planet="${entry.planet}" data-mission="${entry.mission}">
+        <div>
+          <strong>${entry.item}</strong>
+          <small>${entry.planet} • ${entry.mission} • ${entry.rotation}</small>
+        </div>
+        <div class="planner-metrics">
+          <span class="chance">${entry.chance}</span>
+          <span>${getExpectedRuns(entry.chancePercent)}</span>
+        </div>
+      </button>
+    `).join('');
+
+    $(SELECTORS.plannerResults).html(html);
+  }
+
   $(document).on('click', '.drop-row', function onClickDropRow() {
     const itemName = $(this).data('item');
     if (checkedItems[itemName]) {
@@ -311,6 +371,16 @@ $(document).ready(() => {
     savePins();
     updatePinButtonUI();
     renderPinnedList();
+  });
+
+  $(SELECTORS.plannerSearch).on('input', function onPlannerInput() {
+    renderPlannerResults($(this).val());
+  });
+
+  $(document).on('click', '.planner-row', function onPlannerRowClick() {
+    const planet = $(this).data('planet');
+    const mission = $(this).data('mission');
+    loadMission(planet, mission);
   });
 
   $(SELECTORS.hideObtained).on('change', () => renderDrops(currentRotation, 1));
