@@ -15,20 +15,25 @@
   <aside class="panel-left">
     <h3>Filters</h3>
 
+    <label for="planetFilter" class="input-label">Planet</label>
     <select id="planetFilter">
       <option value="All">All Planets</option>
     </select>
 
+    <label for="typeFilter" class="input-label">Mission Type</label>
     <select id="typeFilter">
       <option value="All">All Mission Types</option>
     </select>
 
+    <label for="itemSearch" class="input-label">Drop Search</label>
     <input
       type="text"
       id="itemSearch"
       class="search-input"
       placeholder="Search for an item (e.g. Khora)..."
     >
+    <button id="resetFilters" class="secondary-btn">Reset filters</button>
+    <div id="resultCount" class="result-count"></div>
 
     <table id="locationTable" class="display location-table">
       <thead>
@@ -48,6 +53,7 @@
         <h3>Farm Planner</h3>
         <small>Find the fastest mission for a target drop</small>
       </div>
+      <label for="plannerSearch" class="input-label">Item Name</label>
       <input
         type="text"
         id="plannerSearch"

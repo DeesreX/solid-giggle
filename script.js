@@ -11,6 +11,8 @@ $(document).ready(() => {
     itemSearch: '#itemSearch',
     plannerSearch: '#plannerSearch',
     plannerResults: '#plannerResults',
+    resultCount: '#resultCount',
+    resetFilters: '#resetFilters',
     locationTable: '#locationTable',
     cardTitle: '#cardTitle',
     cardCategory: '#cardCategory',
@@ -61,6 +63,7 @@ $(document).ready(() => {
       setupTable();
       renderPinnedList();
       renderPlannerResults('');
+      showToast('Data loaded. Pick a mission to get started.');
     } catch (err) {
       console.error('Failed to load data:', err);
       alert('Error: Ensure warframe_data.json is in the same folder.');
@@ -91,6 +94,12 @@ $(document).ready(() => {
       language: { search: '', searchPlaceholder: 'Search missions...' }
     });
 
+    const updateResultCount = () => {
+      const shown = locTable.rows({ filter: 'applied' }).count();
+      const total = locTable.rows().count();
+      $(SELECTORS.resultCount).text(`${shown} of ${total} missions shown`);
+    };
+
     $.fn.dataTable.ext.search.push((settings, data, dataIndex) => {
       if (settings.nTable !== $(SELECTORS.locationTable).get(0)) return true;
 
@@ -113,6 +122,17 @@ $(document).ready(() => {
       locTable.draw();
     });
 
+    $(SELECTORS.resetFilters).on('click', () => {
+      $(SELECTORS.planetFilter).val('All');
+      $(SELECTORS.typeFilter).val('All');
+      $(SELECTORS.itemSearch).val('');
+      locTable.search('');
+      locTable.column(1).search('');
+      locTable.column(2).search('');
+      locTable.draw();
+      showToast('Filters reset.');
+    });
+
     $(`${SELECTORS.locationTable} tbody`).on('click', 'tr', function onClickRow() {
       const data = locTable.row(this).data();
       if (!data) return;
@@ -122,6 +142,8 @@ $(document).ready(() => {
     });
 
     populateFilters(tableRows);
+    updateResultCount();
+    locTable.on('draw', updateResultCount);
   }
 
   function buildMissionItemMap(data) {
@@ -348,6 +370,7 @@ $(document).ready(() => {
 
     saveCheckedItems();
     renderDrops(currentRotation, dropPage);
+    showToast(`${itemName} marked as ${checkedItems[itemName] ? 'obtained' : 'not obtained'}.`);
   });
 
   $(document).on('click', '.page-btn', function onClickPage() {
@@ -371,6 +394,7 @@ $(document).ready(() => {
     savePins();
     updatePinButtonUI();
     renderPinnedList();
+    showToast(idx > -1 ? 'Mission unpinned.' : 'Mission pinned.');
   });
 
   $(SELECTORS.plannerSearch).on('input', function onPlannerInput() {
@@ -392,7 +416,21 @@ $(document).ready(() => {
     savePins();
     renderPinnedList();
     updatePinButtonUI();
+    showToast('All pins cleared.');
   });
+
+  function showToast(message) {
+    const $existing = $('#toastMessage');
+    if ($existing.length) $existing.remove();
+
+    const $toast = $(`<div id="toastMessage" class="toast">${message}</div>`);
+    $('body').append($toast);
+    setTimeout(() => $toast.addClass('show'), 10);
+    setTimeout(() => {
+      $toast.removeClass('show');
+      setTimeout(() => $toast.remove(), 220);
+    }, 1700);
+  }
 
   init();
 });
