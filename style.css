@@ -200,6 +200,18 @@ select {
   font-size: 14px;
 }
 
+.relic-item-name {
+  margin-bottom: 6px;
+}
+
+.relic-tier-select {
+  width: auto;
+  min-width: 120px;
+  margin: 0;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
 .action-icon {
   width: 30px;
   text-align: center;
