@@ -45,6 +45,8 @@ $(document).ready(() => {
   let activeMissionID = '';
   let currentRotation = '';
   let dropPage = 1;
+  const relicTierSelections = {};
+  const RELIC_TIER_ORDER = ['Intact', 'Exceptional', 'Flawless', 'Radiant'];
 
   let pinnedMissions = JSON.parse(localStorage.getItem(STORAGE_KEYS.pins)) || [];
   let checkedItems = JSON.parse(localStorage.getItem(STORAGE_KEYS.checkedItems)) || {};
@@ -221,8 +223,9 @@ $(document).ready(() => {
     currentRotation = rotation;
 
     const filtered = currentMissionSet.filter((entry) => entry.rotation === rotation);
-    const unobtained = filtered.filter((entry) => !checkedItems[entry.item]);
-    const obtained = filtered.filter((entry) => checkedItems[entry.item]);
+    const displayEntries = buildDisplayEntries(filtered, rotation);
+    const unobtained = displayEntries.filter((entry) => !entry.isObtained);
+    const obtained = displayEntries.filter((entry) => entry.isObtained);
 
     const totalPages = Math.ceil(unobtained.length / ITEMS_PER_PAGE) || 1;
     dropPage = page > totalPages ? totalPages : page;
@@ -256,15 +259,91 @@ $(document).ready(() => {
         ? 'uncommon'
         : 'common';
 
+    const tierSelector = row.isRelic
+      ? `
+        <select class="relic-tier-select" data-tier-key="${row.tierKey}">
+          ${row.tierOptions.map((tier) => (
+            `<option value="${tier}" ${tier === row.selectedTier ? 'selected' : ''}>${tier}</option>`
+          )).join('')}
+        </select>
+      `
+      : '';
+
+    const itemLabel = row.isRelic
+      ? `<div class="relic-item-name">${row.item}</div>${tierSelector}`
+      : row.item;
+
     return `
-      <tr class="drop-row" data-item="${row.item}">
+      <tr class="drop-row" data-item="${row.item}" data-check-key="${row.checkKey}">
         <td class="action-icon" style="color:${isObtained ? 'var(--accent)' : 'var(--success)'}">
           ${isObtained ? '⟳' : '✔'}
         </td>
-        <td>${row.item}</td>
+        <td>${itemLabel}</td>
         <td class="${chanceClass}" style="text-align:right">${row.chance}</td>
       </tr>
     `;
+  }
+
+  function parseRelicTier(itemName) {
+    const match = itemName.match(/^(.*? Relic) \((Intact|Exceptional|Flawless|Radiant)\)$/);
+    if (!match) return null;
+
+    return {
+      baseItem: match[1],
+      tier: match[2]
+    };
+  }
+
+  function buildDisplayEntries(entries, rotation) {
+    const grouped = new Map();
+
+    entries.forEach((entry) => {
+      const relicInfo = parseRelicTier(entry.item);
+      if (!relicInfo) {
+        grouped.set(`item:${entry.item}`, {
+          item: entry.item,
+          chance: entry.chance,
+          checkKey: entry.item,
+          isRelic: false,
+          isObtained: !!checkedItems[entry.item]
+        });
+        return;
+      }
+
+      const tierKey = `${activeMissionID}|${rotation}|${relicInfo.baseItem}`;
+      const groupKey = `relic:${relicInfo.baseItem}`;
+      const existing = grouped.get(groupKey) || {
+        item: relicInfo.baseItem,
+        checkKey: relicInfo.baseItem,
+        isRelic: true,
+        tierKey,
+        tiers: {}
+      };
+
+      existing.tiers[relicInfo.tier] = entry;
+      grouped.set(groupKey, existing);
+    });
+
+    return [...grouped.values()].map((entry) => {
+      if (!entry.isRelic) return entry;
+
+      const availableTiers = RELIC_TIER_ORDER.filter((tier) => entry.tiers[tier]);
+      const savedTier = relicTierSelections[entry.tierKey];
+      const selectedTier = availableTiers.includes(savedTier) ? savedTier : availableTiers[0];
+      relicTierSelections[entry.tierKey] = selectedTier;
+
+      const selectedEntry = entry.tiers[selectedTier];
+      const isObtained = !!checkedItems[entry.checkKey]
+        || Object.values(entry.tiers).some((tierEntry) => !!checkedItems[tierEntry.item]);
+
+      return {
+        ...entry,
+        selectedTier,
+        tierOptions: availableTiers,
+        chance: selectedEntry.chance,
+        isObtained
+      };
+    });
   }
 
   function renderDropPagination(totalPages) {
@@ -361,16 +440,26 @@ $(document).ready(() => {
   }
 
   $(document).on('click', '.drop-row', function onClickDropRow() {
-    const itemName = $(this).data('item');
-    if (checkedItems[itemName]) {
-      delete checkedItems[itemName];
+    const checkKey = $(this).data('check-key');
+    if (checkedItems[checkKey]) {
+      delete checkedItems[checkKey];
     } else {
-      checkedItems[itemName] = true;
+      checkedItems[checkKey] = true;
     }
 
     saveCheckedItems();
     renderDrops(currentRotation, dropPage);
-    showToast(`${itemName} marked as ${checkedItems[itemName] ? 'obtained' : 'not obtained'}.`);
+    showToast(`${checkKey} marked as ${checkedItems[checkKey] ? 'obtained' : 'not obtained'}.`);
+  });
+
+  $(document).on('click', '.relic-tier-select', (event) => {
+    event.stopPropagation();
+  });
+
+  $(document).on('change', '.relic-tier-select', function onRelicTierChange() {
+    const tierKey = $(this).data('tier-key');
+    relicTierSelections[tierKey] = $(this).val();
+    renderDrops(currentRotation, dropPage);
   });
 
   $(document).on('click', '.page-btn', function onClickPage() {
