@@ -62,7 +62,8 @@ $(document).ready(() => {
 
   const getDefaultLayout = () => ({
     order: ['searchSection', 'plannerSection', 'missionSection', 'pinnedSection'],
-    hidden: []
+    hidden: [],
+    gridPreset: 'balanced'
   });
 
   function readLayout() {
@@ -70,7 +71,10 @@ $(document).ready(() => {
     if (!saved || !Array.isArray(saved.order) || !Array.isArray(saved.hidden)) {
       return getDefaultLayout();
     }
-    return saved;
+    return {
+      ...getDefaultLayout(),
+      ...saved
+    };
   }
 
   function saveLayout(layout) {
@@ -92,6 +96,14 @@ $(document).ready(() => {
     saveLayout(layout);
   }
 
+  function applyGridPreset(preset) {
+    const presetClasses = ['layout-balanced', 'layout-mission-focus', 'layout-planner-focus', 'layout-columns'];
+    const selectedPresetClass = `layout-${preset}`;
+
+    $('#workspaceGrid').removeClass(presetClasses.join(' ')).addClass(selectedPresetClass);
+    $('.layout-preset-btn').removeClass('active').filter(`[data-layout="${preset}"]`).addClass('active');
+  }
+
   function initDockLayout() {
     const layout = readLayout();
     const $grid = $('#workspaceGrid');
@@ -108,6 +120,7 @@ $(document).ready(() => {
     });
 
     updateToggleButtonState();
+    applyGridPreset(layout.gridPreset);
 
     $('.layout-toggle-btn').on('click', function onToggleSection() {
       const sectionId = $(this).data('target');
@@ -115,6 +128,29 @@ $(document).ready(() => {
       $section.toggleClass('hidden-section');
       updateToggleButtonState();
       persistCurrentLayoutOrder();
+    });
+
+    $('.layout-preset-btn').on('mouseenter', function onPresetHover() {
+      const previewPreset = $(this).data('layout');
+      $grid.addClass(`preview-layout-${previewPreset}`);
+      applyGridPreset(previewPreset);
+    });
+
+    $('.layout-preset-btn').on('mouseleave', function onPresetLeave() {
+      const currentLayout = readLayout();
+      $grid.removeClass((_, className) => (
+        (className.match(/preview-layout-\S+/g) || []).join(' ')
+      ));
+      applyGridPreset(currentLayout.gridPreset);
+    });
+
+    $('.layout-preset-btn').on('click', function onPresetClick() {
+      const nextPreset = $(this).data('layout');
+      const nextLayout = readLayout();
+      nextLayout.gridPreset = nextPreset;
+      saveLayout(nextLayout);
+      applyGridPreset(nextPreset);
+      showToast(`Layout set to ${$(this).text()}.`);
     });
 
     $('#resetLayoutBtn').on('click', () => {
@@ -130,12 +166,15 @@ $(document).ready(() => {
 
     $grid.on('dragend', '.dock-panel', function onDragEnd() {
       $(this).removeClass('dragging');
+      $('.dock-panel').removeClass('drop-target');
       dragId = '';
       persistCurrentLayoutOrder();
     });
 
     $grid.on('dragover', '.dock-panel', function onDragOver(e) {
       e.preventDefault();
+      $('.dock-panel').removeClass('drop-target');
+      $(this).addClass('drop-target');
     });
 
     $grid.on('drop', '.dock-panel', function onDrop(e) {
@@ -150,6 +189,11 @@ $(document).ready(() => {
       } else {
         $(this).before($dragged);
       }
+      $('.dock-panel').removeClass('drop-target');
+    });
+
+    $grid.on('dragleave', '.dock-panel', function onDragLeave() {
+      $(this).removeClass('drop-target');
     });
   }
 

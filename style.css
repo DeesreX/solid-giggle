@@ -38,6 +38,11 @@ body {
   gap: 8px;
 }
 
+.layout-presets {
+  display: flex;
+  gap: 6px;
+}
+
 .layout-toggle-btn,
 .secondary-btn {
   padding: 7px 10px;
@@ -47,6 +52,22 @@ body {
   color: var(--text);
   font-size: 12px;
   cursor: pointer;
+}
+
+.layout-preset-btn {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #10161f;
+  color: #9fb2c4;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.layout-preset-btn.active {
+  border-color: var(--accent);
+  color: #dbeeff;
+  background: rgb(88 166 255 / 18%);
 }
 
 .layout-toggle-btn.is-hidden {
@@ -81,6 +102,11 @@ body {
   opacity: 0.45;
 }
 
+.dock-panel.drop-target {
+  border: 2px dashed var(--accent);
+  background: rgb(88 166 255 / 8%);
+}
+
 .dock-header {
   display: flex;
   align-items: center;
@@ -100,6 +126,55 @@ body {
 .dock-content {
   height: 100%;
   overflow: auto;
+}
+
+#searchSection {
+  grid-area: search;
+}
+
+#plannerSection {
+  grid-area: planner;
+}
+
+#missionSection {
+  grid-area: mission;
+}
+
+#pinnedSection {
+  grid-area: pinned;
+}
+
+.workspace-grid.layout-balanced {
+  grid-template-columns: repeat(2, minmax(300px, 1fr));
+  grid-template-areas:
+    "search planner"
+    "mission pinned";
+}
+
+.workspace-grid.layout-mission-focus {
+  grid-template-columns: minmax(280px, 1fr) minmax(420px, 1.6fr);
+  grid-template-areas:
+    "search mission"
+    "planner mission"
+    "pinned mission";
+}
+
+.workspace-grid.layout-planner-focus {
+  grid-template-columns: minmax(280px, 1.4fr) minmax(300px, 1fr);
+  grid-template-areas:
+    "planner mission"
+    "planner search"
+    "planner pinned";
+}
+
+.workspace-grid.layout-columns {
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  grid-template-areas: "search planner mission pinned";
+}
+
+.workspace-grid[class*="preview-layout-"] .dock-panel {
+  outline: 2px solid rgb(88 166 255 / 35%);
+  outline-offset: -2px;
 }
 
 .panel-left,
@@ -502,5 +577,15 @@ table.dataTable.no-footer {
   .workspace-grid {
     grid-template-columns: 1fr;
     height: calc(100dvh - 95px);
+    grid-template-areas:
+      "search"
+      "planner"
+      "mission"
+      "pinned" !important;
+  }
+
+  .layout-presets {
+    width: 100%;
+    flex-wrap: wrap;
   }
 }
