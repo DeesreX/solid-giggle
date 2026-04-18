@@ -2,7 +2,8 @@ $(document).ready(() => {
   const STORAGE_KEYS = {
     pins: 'wf_pins',
     checkedItems: 'wf_checked_items',
-    preferredPartMission: 'wf_preferred_part_mission'
+    preferredPartMission: 'wf_preferred_part_mission',
+    dockLayout: 'wf_dock_layout'
   };
 
   const ITEMS_PER_PAGE = 10;
@@ -59,6 +60,99 @@ $(document).ready(() => {
     localStorage.setItem(STORAGE_KEYS.preferredPartMission, JSON.stringify(preferredPartMission))
   );
 
+  const getDefaultLayout = () => ({
+    order: ['searchSection', 'plannerSection', 'missionSection', 'pinnedSection'],
+    hidden: []
+  });
+
+  function readLayout() {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.dockLayout));
+    if (!saved || !Array.isArray(saved.order) || !Array.isArray(saved.hidden)) {
+      return getDefaultLayout();
+    }
+    return saved;
+  }
+
+  function saveLayout(layout) {
+    localStorage.setItem(STORAGE_KEYS.dockLayout, JSON.stringify(layout));
+  }
+
+  function updateToggleButtonState() {
+    $('.layout-toggle-btn').each(function updateBtn() {
+      const sectionId = $(this).data('target');
+      const isHidden = $(`#${sectionId}`).hasClass('hidden-section');
+      $(this).toggleClass('is-hidden', isHidden);
+    });
+  }
+
+  function persistCurrentLayoutOrder() {
+    const layout = readLayout();
+    layout.order = $('#workspaceGrid .dock-panel').map((_, el) => el.id).get();
+    layout.hidden = $('#workspaceGrid .dock-panel.hidden-section').map((_, el) => el.id).get();
+    saveLayout(layout);
+  }
+
+  function initDockLayout() {
+    const layout = readLayout();
+    const $grid = $('#workspaceGrid');
+    const $panels = $grid.children('.dock-panel');
+
+    layout.order.forEach((panelId) => {
+      const $panel = $(`#${panelId}`);
+      if ($panel.length) $grid.append($panel);
+    });
+
+    $panels.each(function applyHiddenState() {
+      const sectionId = this.id;
+      $(this).toggleClass('hidden-section', layout.hidden.includes(sectionId));
+    });
+
+    updateToggleButtonState();
+
+    $('.layout-toggle-btn').on('click', function onToggleSection() {
+      const sectionId = $(this).data('target');
+      const $section = $(`#${sectionId}`);
+      $section.toggleClass('hidden-section');
+      updateToggleButtonState();
+      persistCurrentLayoutOrder();
+    });
+
+    $('#resetLayoutBtn').on('click', () => {
+      saveLayout(getDefaultLayout());
+      window.location.reload();
+    });
+
+    let dragId = '';
+    $grid.on('dragstart', '.dock-panel', function onDragStart() {
+      dragId = this.id;
+      $(this).addClass('dragging');
+    });
+
+    $grid.on('dragend', '.dock-panel', function onDragEnd() {
+      $(this).removeClass('dragging');
+      dragId = '';
+      persistCurrentLayoutOrder();
+    });
+
+    $grid.on('dragover', '.dock-panel', function onDragOver(e) {
+      e.preventDefault();
+    });
+
+    $grid.on('drop', '.dock-panel', function onDrop(e) {
+      e.preventDefault();
+      if (!dragId || dragId === this.id) return;
+
+      const $dragged = $(`#${dragId}`);
+      if (!$dragged.length) return;
+
+      if ($(this).index() > $dragged.index()) {
+        $(this).after($dragged);
+      } else {
+        $(this).before($dragged);
+      }
+    });
+  }
+
   async function init() {
     try {
       const response = await fetch('warframe_data.json');
@@ -67,6 +161,7 @@ $(document).ready(() => {
       }
 
       fullData = await response.json();
+      initDockLayout();
       warframeIndex = buildWarframeIndex(fullData);
       setupTable();
       renderPinnedList();
