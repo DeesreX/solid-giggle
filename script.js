@@ -10,6 +10,7 @@ $(document).ready(() => {
     typeFilter: '#typeFilter',
     itemSearch: '#itemSearch',
     plannerSearch: '#plannerSearch',
+    plannerWarframeOnly: '#plannerWarframeOnly',
     plannerResults: '#plannerResults',
     resultCount: '#resultCount',
     resetFilters: '#resetFilters',
@@ -45,6 +46,7 @@ $(document).ready(() => {
   let activeMissionID = '';
   let currentRotation = '';
   let dropPage = 1;
+  let warframeIndex = {};
 
   let pinnedMissions = JSON.parse(localStorage.getItem(STORAGE_KEYS.pins)) || [];
   let checkedItems = JSON.parse(localStorage.getItem(STORAGE_KEYS.checkedItems)) || {};
@@ -60,6 +62,7 @@ $(document).ready(() => {
       }
 
       fullData = await response.json();
+      warframeIndex = buildWarframeIndex(fullData);
       setupTable();
       renderPinnedList();
       renderPlannerResults('');
@@ -175,6 +178,45 @@ $(document).ready(() => {
   function getExpectedRuns(chance) {
     if (!chance) return '—';
     return `${Math.ceil(100 / chance)} runs`;
+  }
+
+  function extractBlueprintInfo(itemName) {
+    const match = itemName.match(/^(.*?)(?: (Chassis|Neuroptics|Systems))? Blueprint$/);
+    if (!match) return null;
+
+    return {
+      warframe: match[1],
+      part: match[2] || 'Main'
+    };
+  }
+
+  function buildWarframeIndex(data) {
+    const candidateFrames = data.reduce((acc, entry) => {
+      const info = extractBlueprintInfo(entry.item);
+      if (!info) return acc;
+
+      if (!acc[info.warframe]) {
+        acc[info.warframe] = {
+          parts: new Set(),
+          entries: []
+        };
+      }
+
+      acc[info.warframe].parts.add(info.part);
+      acc[info.warframe].entries.push({
+        ...entry,
+        part: info.part
+      });
+      return acc;
+    }, {});
+
+    return Object.entries(candidateFrames).reduce((acc, [name, value]) => {
+      const partSet = value.parts;
+      const hasFullFrameParts = ['Chassis', 'Neuroptics', 'Systems'].every((part) => partSet.has(part));
+      if (!hasFullFrameParts) return acc;
+      acc[name] = value.entries;
+      return acc;
+    }, {});
   }
 
   function loadMission(planet, mission) {
@@ -320,6 +362,12 @@ $(document).ready(() => {
   }
 
   function renderPlannerResults(query) {
+    const warframesOnly = $(SELECTORS.plannerWarframeOnly).is(':checked');
+    if (warframesOnly) {
+      renderWarframeSearchResults(query);
+      return;
+    }
+
     const normalized = query.toLowerCase().trim();
     if (!normalized) {
       $(SELECTORS.plannerResults).html('<div class="empty-msg">Search an item to see best drop locations.</div>');
@@ -356,6 +404,79 @@ $(document).ready(() => {
         </div>
       </button>
     `).join('');
+
+    $(SELECTORS.plannerResults).html(html);
+  }
+
+  function renderWarframeSearchResults(query) {
+    const normalized = query.toLowerCase().trim();
+    if (!normalized) {
+      $(SELECTORS.plannerResults).html('<div class="empty-msg">Search a Warframe name to see where each blueprint drops.</div>');
+      return;
+    }
+
+    const frameNames = Object.keys(warframeIndex)
+      .filter((name) => name.toLowerCase().includes(normalized))
+      .sort((a, b) => a.localeCompare(b))
+      .slice(0, 20);
+
+    if (!frameNames.length) {
+      $(SELECTORS.plannerResults).html('<div class="empty-msg">No matching Warframes found.</div>');
+      return;
+    }
+
+    const html = frameNames.map((name) => `
+      <button class="planner-row planner-warframe-row" data-warframe="${name}">
+        <div>
+          <strong>${name}</strong>
+          <small>Show best farms for ${name} blueprints</small>
+        </div>
+      </button>
+    `).join('');
+
+    $(SELECTORS.plannerResults).html(html);
+  }
+
+  function renderWarframeParts(warframeName) {
+    const entries = warframeIndex[warframeName] || [];
+    if (!entries.length) {
+      $(SELECTORS.plannerResults).html('<div class="empty-msg">No blueprint drops found for this Warframe.</div>');
+      return;
+    }
+
+    const bestByItem = entries.reduce((acc, entry) => {
+      const chance = parseChancePercent(entry.chance);
+      if (!acc[entry.item] || chance > acc[entry.item].chancePercent) {
+        acc[entry.item] = {
+          ...entry,
+          chancePercent: chance
+        };
+      }
+      return acc;
+    }, {});
+
+    const sorted = Object.values(bestByItem).sort((a, b) => {
+      const aPart = a.part === 'Main' ? 0 : 1;
+      const bPart = b.part === 'Main' ? 0 : 1;
+      if (aPart !== bPart) return aPart - bPart;
+      return a.part.localeCompare(b.part);
+    });
+
+    const html = `
+      <div class="planner-section-title">${warframeName} blueprint farms</div>
+      ${sorted.map((entry) => `
+        <button class="planner-row planner-part-row" data-planet="${entry.planet}" data-mission="${entry.mission}">
+          <div>
+            <strong>${entry.item}</strong>
+            <small>${entry.planet} • ${entry.mission} • ${entry.rotation}</small>
+          </div>
+          <div class="planner-metrics">
+            <span class="chance">${entry.chance}</span>
+            <span>${getExpectedRuns(entry.chancePercent)}</span>
+          </div>
+        </button>
+      `).join('')}
+    `;
 
     $(SELECTORS.plannerResults).html(html);
   }
@@ -401,10 +522,18 @@ $(document).ready(() => {
     renderPlannerResults($(this).val());
   });
 
-  $(document).on('click', '.planner-row', function onPlannerRowClick() {
+  $(SELECTORS.plannerWarframeOnly).on('change', function onWarframeToggle() {
+    renderPlannerResults($(SELECTORS.plannerSearch).val());
+  });
+
+  $(document).on('click', '.planner-part-row, .planner-row:not(.planner-warframe-row)', function onPlannerRowClick() {
     const planet = $(this).data('planet');
     const mission = $(this).data('mission');
     loadMission(planet, mission);
+  });
+
+  $(document).on('click', '.planner-warframe-row', function onWarframeRowClick() {
+    renderWarframeParts($(this).data('warframe'));
   });
 
   $(SELECTORS.hideObtained).on('change', () => renderDrops(currentRotation, 1));

@@ -349,6 +349,29 @@ table.dataTable.no-footer {
   overflow-y: auto;
 }
 
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -2px 0 12px;
+  color: #8b949e;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.toggle-row input {
+  margin: 0;
+}
+
+.planner-section-title {
+  margin: 4px 0;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 .planner-row {
   display: flex;
   align-items: center;
