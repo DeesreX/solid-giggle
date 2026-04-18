@@ -1,7 +1,8 @@
 $(document).ready(() => {
   const STORAGE_KEYS = {
     pins: 'wf_pins',
-    checkedItems: 'wf_checked_items'
+    checkedItems: 'wf_checked_items',
+    preferredPartMission: 'wf_preferred_part_mission'
   };
 
   const ITEMS_PER_PAGE = 10;
@@ -50,9 +51,13 @@ $(document).ready(() => {
 
   let pinnedMissions = JSON.parse(localStorage.getItem(STORAGE_KEYS.pins)) || [];
   let checkedItems = JSON.parse(localStorage.getItem(STORAGE_KEYS.checkedItems)) || {};
+  let preferredPartMission = JSON.parse(localStorage.getItem(STORAGE_KEYS.preferredPartMission)) || {};
 
   const savePins = () => localStorage.setItem(STORAGE_KEYS.pins, JSON.stringify(pinnedMissions));
   const saveCheckedItems = () => localStorage.setItem(STORAGE_KEYS.checkedItems, JSON.stringify(checkedItems));
+  const savePreferredPartMission = () => (
+    localStorage.setItem(STORAGE_KEYS.preferredPartMission, JSON.stringify(preferredPartMission))
+  );
 
   async function init() {
     try {
@@ -205,7 +210,8 @@ $(document).ready(() => {
       acc[info.warframe].parts.add(info.part);
       acc[info.warframe].entries.push({
         ...entry,
-        part: info.part
+        part: info.part,
+        missionId: `${entry.planet}/${entry.mission}`
       });
       return acc;
     }, {});
@@ -444,42 +450,91 @@ $(document).ready(() => {
       return;
     }
 
-    const bestByItem = entries.reduce((acc, entry) => {
+    const groupedByItem = entries.reduce((acc, entry) => {
       const chance = parseChancePercent(entry.chance);
-      if (!acc[entry.item] || chance > acc[entry.item].chancePercent) {
-        acc[entry.item] = {
-          ...entry,
-          chancePercent: chance
-        };
+      if (!acc[entry.item]) {
+        acc[entry.item] = [];
       }
+
+      acc[entry.item].push({
+        ...entry,
+        chancePercent: chance
+      });
       return acc;
     }, {});
 
-    const sorted = Object.values(bestByItem).sort((a, b) => {
-      const aPart = a.part === 'Main' ? 0 : 1;
-      const bPart = b.part === 'Main' ? 0 : 1;
+    const selectedPerItem = Object.entries(groupedByItem).map(([itemName, options]) => {
+      const sortedOptions = [...options].sort((a, b) => b.chancePercent - a.chancePercent);
+      const preferredMissionId = preferredPartMission[itemName];
+      const preferred = sortedOptions.find((option) => option.missionId === preferredMissionId);
+
+      return {
+        itemName,
+        options: sortedOptions,
+        selected: preferred || sortedOptions[0]
+      };
+    });
+
+    const sorted = selectedPerItem.sort((a, b) => {
+      const aPart = a.selected.part === 'Main' ? 0 : 1;
+      const bPart = b.selected.part === 'Main' ? 0 : 1;
       if (aPart !== bPart) return aPart - bPart;
-      return a.part.localeCompare(b.part);
+      return a.selected.part.localeCompare(b.selected.part);
     });
 
     const html = `
       <div class="planner-section-title">${warframeName} blueprint farms</div>
-      ${sorted.map((entry) => `
-        <button class="planner-row planner-part-row" data-planet="${entry.planet}" data-mission="${entry.mission}">
-          <div>
-            <strong>${entry.item}</strong>
-            <small>${entry.planet} • ${entry.mission} • ${entry.rotation}</small>
-          </div>
-          <div class="planner-metrics">
-            <span class="chance">${entry.chance}</span>
-            <span>${getExpectedRuns(entry.chancePercent)}</span>
-          </div>
-        </button>
+      ${sorted.map(({ itemName, selected, options }) => `
+        <div class="planner-part-card">
+          <button class="planner-row planner-part-row" data-planet="${selected.planet}" data-mission="${selected.mission}">
+            <div>
+              <strong>${selected.item}</strong>
+              <small>${selected.planet} • ${selected.mission} • ${selected.rotation}</small>
+            </div>
+            <div class="planner-metrics">
+              <span class="chance">${selected.chance}</span>
+              <span>${getExpectedRuns(selected.chancePercent)}</span>
+            </div>
+          </button>
+          <label class="planner-alt-label">
+            Preferred mission
+            <select class="planner-alt-select" data-item="${itemName}">
+              ${options.map((option) => `
+                <option value="${option.missionId}" ${option.missionId === selected.missionId ? 'selected' : ''}>
+                  ${option.planet} • ${option.mission} • ${option.rotation} (${option.chance})
+                </option>
+              `).join('')}
+            </select>
+          </label>
+        </div>
       `).join('')}
     `;
 
     $(SELECTORS.plannerResults).html(html);
   }
+
+  function setPreferredPartMission(itemName, missionId) {
+    if (!itemName || !missionId) return;
+    preferredPartMission[itemName] = missionId;
+    savePreferredPartMission();
+  }
+
+  function getWarframeNameForItem(itemName) {
+    const info = extractBlueprintInfo(itemName);
+    return info ? info.warframe : '';
+  }
+
+  $(document).on('change', '.planner-alt-select', function onPreferredMissionChange() {
+    const itemName = $(this).data('item');
+    const missionId = $(this).val();
+    setPreferredPartMission(itemName, missionId);
+
+    const warframeName = getWarframeNameForItem(itemName);
+    if (warframeName) {
+      renderWarframeParts(warframeName);
+      showToast(`Preferred mission updated for ${itemName}.`);
+    }
+  });
 
   $(document).on('click', '.drop-row', function onClickDropRow() {
     const itemName = $(this).data('item');
