@@ -347,6 +347,12 @@ $(document).ready(() => {
     return missionAttempts[key] || 0;
   }
 
+  function getMissionRotations() {
+    const uniqueRotations = [...new Set(currentMissionSet.map((entry) => entry.rotation))]
+      .filter((rotation) => rotation && rotation !== 'N/A');
+    return uniqueRotations.length ? uniqueRotations : [currentRotation];
+  }
+
   function updateRunCounterLabel() {
     const runs = getRunCountForCurrentMission();
     $(SELECTORS.runCounterLabel).text(`Completed runs: ${runs}`);
@@ -770,8 +776,17 @@ $(document).ready(() => {
   $(SELECTORS.addRunBtn).on('click', () => {
     if (!activeMissionID || !currentRotation) return;
 
-    const key = missionAttemptKey(activeMissionID, currentRotation);
-    missionAttempts[key] = (missionAttempts[key] || 0) + 1;
+    const rotations = getMissionRotations();
+    const selectedRotationIndex = rotations.indexOf(currentRotation);
+    const affectedRotations = selectedRotationIndex > -1
+      ? rotations.slice(0, selectedRotationIndex + 1)
+      : [currentRotation];
+
+    affectedRotations.forEach((rotation) => {
+      const key = missionAttemptKey(activeMissionID, rotation);
+      missionAttempts[key] = (missionAttempts[key] || 0) + 1;
+    });
+
     saveMissionAttempts();
     renderDrops(currentRotation, dropPage);
   });
