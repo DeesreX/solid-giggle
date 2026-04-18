@@ -2,7 +2,8 @@ $(document).ready(() => {
   const STORAGE_KEYS = {
     pins: 'wf_pins',
     checkedItems: 'wf_checked_items',
-    preferredPartMission: 'wf_preferred_part_mission'
+    preferredPartMission: 'wf_preferred_part_mission',
+    dockLayout: 'wf_dock_layout'
   };
 
   const ITEMS_PER_PAGE = 10;
@@ -59,6 +60,143 @@ $(document).ready(() => {
     localStorage.setItem(STORAGE_KEYS.preferredPartMission, JSON.stringify(preferredPartMission))
   );
 
+  const getDefaultLayout = () => ({
+    order: ['searchSection', 'plannerSection', 'missionSection', 'pinnedSection'],
+    hidden: [],
+    gridPreset: 'balanced'
+  });
+
+  function readLayout() {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.dockLayout));
+    if (!saved || !Array.isArray(saved.order) || !Array.isArray(saved.hidden)) {
+      return getDefaultLayout();
+    }
+    return {
+      ...getDefaultLayout(),
+      ...saved
+    };
+  }
+
+  function saveLayout(layout) {
+    localStorage.setItem(STORAGE_KEYS.dockLayout, JSON.stringify(layout));
+  }
+
+  function updateToggleButtonState() {
+    $('.layout-toggle-btn').each(function updateBtn() {
+      const sectionId = $(this).data('target');
+      const isHidden = $(`#${sectionId}`).hasClass('hidden-section');
+      $(this).toggleClass('is-hidden', isHidden);
+    });
+  }
+
+  function persistCurrentLayoutOrder() {
+    const layout = readLayout();
+    layout.order = $('#workspaceGrid .dock-panel').map((_, el) => el.id).get();
+    layout.hidden = $('#workspaceGrid .dock-panel.hidden-section').map((_, el) => el.id).get();
+    saveLayout(layout);
+  }
+
+  function applyGridPreset(preset) {
+    const presetClasses = ['layout-balanced', 'layout-mission-focus', 'layout-planner-focus', 'layout-columns'];
+    const selectedPresetClass = `layout-${preset}`;
+
+    $('#workspaceGrid').removeClass(presetClasses.join(' ')).addClass(selectedPresetClass);
+    $('.layout-preset-btn').removeClass('active').filter(`[data-layout="${preset}"]`).addClass('active');
+  }
+
+  function initDockLayout() {
+    const layout = readLayout();
+    const $grid = $('#workspaceGrid');
+    const $panels = $grid.children('.dock-panel');
+
+    layout.order.forEach((panelId) => {
+      const $panel = $(`#${panelId}`);
+      if ($panel.length) $grid.append($panel);
+    });
+
+    $panels.each(function applyHiddenState() {
+      const sectionId = this.id;
+      $(this).toggleClass('hidden-section', layout.hidden.includes(sectionId));
+    });
+
+    updateToggleButtonState();
+    applyGridPreset(layout.gridPreset);
+
+    $('.layout-toggle-btn').on('click', function onToggleSection() {
+      const sectionId = $(this).data('target');
+      const $section = $(`#${sectionId}`);
+      $section.toggleClass('hidden-section');
+      updateToggleButtonState();
+      persistCurrentLayoutOrder();
+    });
+
+    $('.layout-preset-btn').on('mouseenter', function onPresetHover() {
+      const previewPreset = $(this).data('layout');
+      $grid.addClass(`preview-layout-${previewPreset}`);
+      applyGridPreset(previewPreset);
+    });
+
+    $('.layout-preset-btn').on('mouseleave', function onPresetLeave() {
+      const currentLayout = readLayout();
+      $grid.removeClass((_, className) => (
+        (className.match(/preview-layout-\S+/g) || []).join(' ')
+      ));
+      applyGridPreset(currentLayout.gridPreset);
+    });
+
+    $('.layout-preset-btn').on('click', function onPresetClick() {
+      const nextPreset = $(this).data('layout');
+      const nextLayout = readLayout();
+      nextLayout.gridPreset = nextPreset;
+      saveLayout(nextLayout);
+      applyGridPreset(nextPreset);
+      showToast(`Layout set to ${$(this).text()}.`);
+    });
+
+    $('#resetLayoutBtn').on('click', () => {
+      saveLayout(getDefaultLayout());
+      window.location.reload();
+    });
+
+    let dragId = '';
+    $grid.on('dragstart', '.dock-panel', function onDragStart() {
+      dragId = this.id;
+      $(this).addClass('dragging');
+    });
+
+    $grid.on('dragend', '.dock-panel', function onDragEnd() {
+      $(this).removeClass('dragging');
+      $('.dock-panel').removeClass('drop-target');
+      dragId = '';
+      persistCurrentLayoutOrder();
+    });
+
+    $grid.on('dragover', '.dock-panel', function onDragOver(e) {
+      e.preventDefault();
+      $('.dock-panel').removeClass('drop-target');
+      $(this).addClass('drop-target');
+    });
+
+    $grid.on('drop', '.dock-panel', function onDrop(e) {
+      e.preventDefault();
+      if (!dragId || dragId === this.id) return;
+
+      const $dragged = $(`#${dragId}`);
+      if (!$dragged.length) return;
+
+      if ($(this).index() > $dragged.index()) {
+        $(this).after($dragged);
+      } else {
+        $(this).before($dragged);
+      }
+      $('.dock-panel').removeClass('drop-target');
+    });
+
+    $grid.on('dragleave', '.dock-panel', function onDragLeave() {
+      $(this).removeClass('drop-target');
+    });
+  }
+
   async function init() {
     try {
       const response = await fetch('warframe_data.json');
@@ -67,6 +205,7 @@ $(document).ready(() => {
       }
 
       fullData = await response.json();
+      initDockLayout();
       warframeIndex = buildWarframeIndex(fullData);
       setupTable();
       renderPinnedList();
