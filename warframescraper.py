@@ -67,6 +67,6 @@ def scrape_warframe_data(html_path):
     return all_data
 
 if __name__ == "__main__":
-    data = scrape_warframe_data('Warframe PC Drops.html')
+    data = scrape_warframe_data('drops.html')
     with open('warframe_data.json', 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=4)
