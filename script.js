@@ -272,8 +272,11 @@ $(document).ready(() => {
       const pVal = $(SELECTORS.planetFilter).val();
       const tVal = $(SELECTORS.typeFilter).val();
 
-      locTable.column(1).search(pVal === 'All' ? '' : `^${pVal}$`, true, false);
-      locTable.column(2).search(tVal === 'All' ? '' : `^${tVal}$`, true, false);
+      const planetPattern = pVal === 'All' ? '' : `^${escapeRegex(pVal)}$`;
+      const typePattern = tVal === 'All' ? '' : `^${escapeRegex(tVal)}$`;
+
+      locTable.column(1).search(planetPattern, true, false);
+      locTable.column(2).search(typePattern, true, false);
       locTable.draw();
     });
 
@@ -312,6 +315,10 @@ $(document).ready(() => {
 
   function missionKey(planet, mission) {
     return `${planet}|${mission}`;
+  }
+
+  function escapeRegex(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   function populateFilters(rows) {
