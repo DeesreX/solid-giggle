@@ -3,7 +3,8 @@ $(document).ready(() => {
     pins: 'wf_pins',
     checkedItems: 'wf_checked_items',
     preferredPartMission: 'wf_preferred_part_mission',
-    dockLayout: 'wf_dock_layout'
+    dockLayout: 'wf_dock_layout',
+    missionAttempts: 'wf_mission_attempts'
   };
 
   const ITEMS_PER_PAGE = 10;
@@ -30,7 +31,10 @@ $(document).ready(() => {
     paginationAnchor: '#paginationAnchor',
     mainPinBtn: '#mainPinBtn',
     pinnedList: '#pinnedList',
-    clearPins: '#clearPins'
+    clearPins: '#clearPins',
+    runCounterLabel: '#runCounterLabel',
+    addRunBtn: '#addRunBtn',
+    resetRunBtn: '#resetRunBtn'
   };
 
   const rotationOrders = {
@@ -53,11 +57,15 @@ $(document).ready(() => {
   let pinnedMissions = JSON.parse(localStorage.getItem(STORAGE_KEYS.pins)) || [];
   let checkedItems = JSON.parse(localStorage.getItem(STORAGE_KEYS.checkedItems)) || {};
   let preferredPartMission = JSON.parse(localStorage.getItem(STORAGE_KEYS.preferredPartMission)) || {};
+  let missionAttempts = JSON.parse(localStorage.getItem(STORAGE_KEYS.missionAttempts)) || {};
 
   const savePins = () => localStorage.setItem(STORAGE_KEYS.pins, JSON.stringify(pinnedMissions));
   const saveCheckedItems = () => localStorage.setItem(STORAGE_KEYS.checkedItems, JSON.stringify(checkedItems));
   const savePreferredPartMission = () => (
     localStorage.setItem(STORAGE_KEYS.preferredPartMission, JSON.stringify(preferredPartMission))
+  );
+  const saveMissionAttempts = () => (
+    localStorage.setItem(STORAGE_KEYS.missionAttempts, JSON.stringify(missionAttempts))
   );
 
   const getDefaultLayout = () => ({
@@ -324,6 +332,32 @@ $(document).ready(() => {
     return `${Math.ceil(100 / chance)} runs`;
   }
 
+  function getNoDropChance(chancePercent, runCount) {
+    if (!chancePercent || !runCount) return 100;
+    return ((1 - (chancePercent / 100)) ** runCount) * 100;
+  }
+
+  function missionAttemptKey(missionId, rotation) {
+    return `${missionId}|${rotation}`;
+  }
+
+  function getRunCountForCurrentMission() {
+    if (!activeMissionID || !currentRotation) return 0;
+    const key = missionAttemptKey(activeMissionID, currentRotation);
+    return missionAttempts[key] || 0;
+  }
+
+  function getMissionRotations() {
+    const uniqueRotations = [...new Set(currentMissionSet.map((entry) => entry.rotation))]
+      .filter((rotation) => rotation && rotation !== 'N/A');
+    return uniqueRotations.length ? uniqueRotations : [currentRotation];
+  }
+
+  function updateRunCounterLabel() {
+    const runs = getRunCountForCurrentMission();
+    $(SELECTORS.runCounterLabel).text(`Completed runs: ${runs}`);
+  }
+
   function extractBlueprintInfo(itemName) {
     const match = itemName.match(/^(.*?)(?: (Chassis|Neuroptics|Systems))? Blueprint$/);
     if (!match) return null;
@@ -416,13 +450,14 @@ $(document).ready(() => {
 
     const start = (dropPage - 1) * ITEMS_PER_PAGE;
     const paginatedFarm = unobtained.slice(start, start + ITEMS_PER_PAGE);
+    const runCount = getRunCountForCurrentMission();
 
-    const farmHtml = paginatedFarm.map((entry) => generateRowHtml(entry, false)).join('');
+    const farmHtml = paginatedFarm.map((entry) => generateRowHtml(entry, false, runCount)).join('');
     $(SELECTORS.cardDrops).html(
       farmHtml || '<tr><td colspan="3" class="empty-msg">No items left to farm!</td></tr>'
     );
 
-    const obtainedHtml = obtained.map((entry) => generateRowHtml(entry, true)).join('');
+    const obtainedHtml = obtained.map((entry) => generateRowHtml(entry, true, runCount)).join('');
     $(SELECTORS.obtainedDrops).html(obtainedHtml);
 
     const completion = filtered.length ? Math.round((obtained.length / filtered.length) * 100) : 0;
@@ -433,15 +468,21 @@ $(document).ready(() => {
     const shouldShowObtained = !$(SELECTORS.hideObtained).is(':checked') && obtained.length > 0;
     $(SELECTORS.obtainedTable).toggle(shouldShowObtained);
 
+    updateRunCounterLabel();
     renderDropPagination(totalPages);
   }
 
-  function generateRowHtml(row, isObtained) {
+  function generateRowHtml(row, isObtained, runCount = 0) {
     const chanceClass = row.chance.includes('Rare')
       ? 'rare'
       : row.chance.includes('Uncommon')
         ? 'uncommon'
         : 'common';
+    const chancePercent = parseChancePercent(row.chance);
+    const noDropChance = getNoDropChance(chancePercent, runCount);
+    const noDropText = runCount > 0 && !isObtained
+      ? `<span class="miss-rate">Miss chance after ${runCount} run${runCount === 1 ? '' : 's'}: ${noDropChance.toFixed(2)}%</span>`
+      : '';
 
     return `
       <tr class="drop-row" data-item="${row.item}">
@@ -449,7 +490,7 @@ $(document).ready(() => {
           ${isObtained ? '⟳' : '✔'}
         </td>
         <td>${row.item}</td>
-        <td class="${chanceClass}" style="text-align:right">${row.chance}</td>
+        <td class="${chanceClass} drop-chance-cell">${row.chance}${noDropText}</td>
       </tr>
     `;
   }
@@ -731,6 +772,34 @@ $(document).ready(() => {
   });
 
   $(SELECTORS.hideObtained).on('change', () => renderDrops(currentRotation, 1));
+
+  $(SELECTORS.addRunBtn).on('click', () => {
+    if (!activeMissionID || !currentRotation) return;
+
+    const rotations = getMissionRotations();
+    const selectedRotationIndex = rotations.indexOf(currentRotation);
+    const affectedRotations = selectedRotationIndex > -1
+      ? rotations.slice(0, selectedRotationIndex + 1)
+      : [currentRotation];
+
+    affectedRotations.forEach((rotation) => {
+      const key = missionAttemptKey(activeMissionID, rotation);
+      missionAttempts[key] = (missionAttempts[key] || 0) + 1;
+    });
+
+    saveMissionAttempts();
+    renderDrops(currentRotation, dropPage);
+  });
+
+  $(SELECTORS.resetRunBtn).on('click', () => {
+    if (!activeMissionID || !currentRotation) return;
+
+    const key = missionAttemptKey(activeMissionID, currentRotation);
+    delete missionAttempts[key];
+    saveMissionAttempts();
+    renderDrops(currentRotation, dropPage);
+    showToast('Run counter reset for this mission rotation.');
+  });
 
   $(SELECTORS.clearPins).on('click', () => {
     if (!confirm('Clear all pins?')) return;

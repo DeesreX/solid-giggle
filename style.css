@@ -415,6 +415,24 @@ select {
   color: var(--success);
 }
 
+.run-counter-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: -3px 0 8px;
+}
+
+.run-counter-label {
+  color: #8b949e;
+  font-size: 12px;
+}
+
+.run-counter-actions {
+  display: flex;
+  gap: 6px;
+}
+
 .obtained-section {
   margin-top: 20px;
   padding-top: 20px;
@@ -470,6 +488,18 @@ select {
 .drop-table td {
   padding: 12px 10px;
   font-size: 14px;
+}
+
+.drop-chance-cell {
+  text-align: right;
+}
+
+.miss-rate {
+  display: block;
+  margin-top: 4px;
+  color: #8b949e;
+  font-size: 11px;
+  font-weight: 400;
 }
 
 .action-icon {
