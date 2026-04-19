@@ -390,6 +390,46 @@ select {
   color: #fff;
 }
 
+
+.mission-complete-toggle {
+  margin-top: -4px;
+}
+
+.completion-banner {
+  display: none;
+  margin: -2px 0 14px;
+  padding: 12px;
+  border: 1px solid rgb(63 185 80 / 45%);
+  border-radius: 8px;
+  background: rgb(63 185 80 / 12%);
+}
+
+.completion-title {
+  margin-bottom: 4px;
+  color: #9fe7aa;
+  font-weight: 700;
+}
+
+.completion-copy {
+  color: #b3c7bb;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.mission-card.completed-mode .completion-banner {
+  display: block;
+}
+
+.mission-card.completed-mode #guideAnchor,
+.mission-card.completed-mode #rotNav,
+.mission-card.completed-mode .section-label.accent,
+.mission-card.completed-mode .run-counter-controls,
+.mission-card.completed-mode .drop-table,
+.mission-card.completed-mode #paginationAnchor,
+.mission-card.completed-mode .obtained-section {
+  display: none;
+}
+
 .mission-progress {
   display: flex;
   justify-content: space-between;
