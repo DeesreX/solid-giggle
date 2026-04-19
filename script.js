@@ -272,8 +272,11 @@ $(document).ready(() => {
       const pVal = $(SELECTORS.planetFilter).val();
       const tVal = $(SELECTORS.typeFilter).val();
 
-      locTable.column(1).search(pVal === 'All' ? '' : `^${pVal}$`, true, false);
-      locTable.column(2).search(tVal === 'All' ? '' : `^${tVal}$`, true, false);
+      const planetPattern = pVal === 'All' ? '' : `^${escapeRegex(pVal)}$`;
+      const typePattern = tVal === 'All' ? '' : `^${escapeRegex(tVal)}$`;
+
+      locTable.column(1).search(planetPattern, true, false);
+      locTable.column(2).search(typePattern, true, false);
       locTable.draw();
     });
 
@@ -303,6 +306,7 @@ $(document).ready(() => {
 
   function buildMissionItemMap(data) {
     return data.reduce((acc, entry) => {
+      if (entry.isNoDropPlaceholder) return acc;
       const key = missionKey(entry.planet, entry.mission);
       if (!acc[key]) acc[key] = [];
       acc[key].push(entry.item.toLowerCase());
@@ -312,6 +316,10 @@ $(document).ready(() => {
 
   function missionKey(planet, mission) {
     return `${planet}|${mission}`;
+  }
+
+  function escapeRegex(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   function populateFilters(rows) {
@@ -442,8 +450,10 @@ $(document).ready(() => {
     currentRotation = rotation;
 
     const filtered = currentMissionSet.filter((entry) => entry.rotation === rotation);
-    const unobtained = filtered.filter((entry) => !checkedItems[entry.item]);
-    const obtained = filtered.filter((entry) => checkedItems[entry.item]);
+    const farmableEntries = filtered.filter((entry) => !entry.isNoDropPlaceholder);
+    const hasNoDropPlaceholder = filtered.some((entry) => entry.isNoDropPlaceholder);
+    const unobtained = farmableEntries.filter((entry) => !checkedItems[entry.item]);
+    const obtained = farmableEntries.filter((entry) => checkedItems[entry.item]);
 
     const totalPages = Math.ceil(unobtained.length / ITEMS_PER_PAGE) || 1;
     dropPage = page > totalPages ? totalPages : page;
@@ -453,14 +463,17 @@ $(document).ready(() => {
     const runCount = getRunCountForCurrentMission();
 
     const farmHtml = paginatedFarm.map((entry) => generateRowHtml(entry, false, runCount)).join('');
+    const emptyFarmMessage = hasNoDropPlaceholder
+      ? 'No drop rewards left for this mission.'
+      : 'No items left to farm!';
     $(SELECTORS.cardDrops).html(
-      farmHtml || '<tr><td colspan="3" class="empty-msg">No items left to farm!</td></tr>'
+      farmHtml || `<tr><td colspan="3" class="empty-msg">${emptyFarmMessage}</td></tr>`
     );
 
     const obtainedHtml = obtained.map((entry) => generateRowHtml(entry, true, runCount)).join('');
     $(SELECTORS.obtainedDrops).html(obtainedHtml);
 
-    const completion = filtered.length ? Math.round((obtained.length / filtered.length) * 100) : 0;
+    const completion = farmableEntries.length ? Math.round((obtained.length / farmableEntries.length) * 100) : 100;
     $(SELECTORS.missionProgress).html(
       `<span>${unobtained.length} items left</span><span>${completion}% complete</span>`
     );
