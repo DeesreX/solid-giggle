@@ -4,7 +4,8 @@ $(document).ready(() => {
     checkedItems: 'wf_checked_items',
     preferredPartMission: 'wf_preferred_part_mission',
     dockLayout: 'wf_dock_layout',
-    missionAttempts: 'wf_mission_attempts'
+    missionAttempts: 'wf_mission_attempts',
+    showInfoWhenComplete: 'wf_show_info_when_complete'
   };
 
   const ITEMS_PER_PAGE = 10;
@@ -21,6 +22,8 @@ $(document).ready(() => {
     cardTitle: '#cardTitle',
     cardCategory: '#cardCategory',
     missionProgress: '#missionProgress',
+    showInfoWhenComplete: '#showInfoWhenComplete',
+    completionBanner: '#completionBanner',
     guideAnchor: '#guideAnchor',
     rotNav: '#rotNav',
     missionCard: '#missionCard',
@@ -58,6 +61,7 @@ $(document).ready(() => {
   let checkedItems = JSON.parse(localStorage.getItem(STORAGE_KEYS.checkedItems)) || {};
   let preferredPartMission = JSON.parse(localStorage.getItem(STORAGE_KEYS.preferredPartMission)) || {};
   let missionAttempts = JSON.parse(localStorage.getItem(STORAGE_KEYS.missionAttempts)) || {};
+  let showInfoWhenComplete = JSON.parse(localStorage.getItem(STORAGE_KEYS.showInfoWhenComplete)) || false;
 
   const savePins = () => localStorage.setItem(STORAGE_KEYS.pins, JSON.stringify(pinnedMissions));
   const saveCheckedItems = () => localStorage.setItem(STORAGE_KEYS.checkedItems, JSON.stringify(checkedItems));
@@ -66,6 +70,9 @@ $(document).ready(() => {
   );
   const saveMissionAttempts = () => (
     localStorage.setItem(STORAGE_KEYS.missionAttempts, JSON.stringify(missionAttempts))
+  );
+  const saveShowInfoWhenComplete = () => (
+    localStorage.setItem(STORAGE_KEYS.showInfoWhenComplete, JSON.stringify(showInfoWhenComplete))
   );
 
   const getDefaultLayout = () => ({
@@ -419,6 +426,7 @@ $(document).ready(() => {
 
     updatePinButtonUI();
     setupRotationNav();
+    $(SELECTORS.showInfoWhenComplete).prop('checked', showInfoWhenComplete);
 
     $(SELECTORS.missionCard).fadeIn(100);
     renderDrops(currentRotation, 1);
@@ -444,6 +452,26 @@ $(document).ready(() => {
 
     $(SELECTORS.rotNav).hide();
     currentRotation = validRots[0] || 'N/A';
+  }
+
+  function hasFullRotationCycle() {
+    const rotations = new Set(currentMissionSet.map((entry) => entry.rotation));
+    return ['A', 'B', 'C'].every((rotation) => rotations.has(rotation));
+  }
+
+  function isMissionFullyFarmed() {
+    const farmableEntries = currentMissionSet.filter((entry) => !entry.isNoDropPlaceholder);
+    if (!farmableEntries.length) return false;
+    return farmableEntries.every((entry) => checkedItems[entry.item]);
+  }
+
+  function updateMissionCompleteMode(isComplete) {
+    $(SELECTORS.missionCard).toggleClass('completed-mode', isComplete && !showInfoWhenComplete);
+    $(SELECTORS.completionBanner).html(
+      isComplete
+        ? '<div class="completion-title">✅ Mission complete</div><div class="completion-copy">All tracked rewards in rotations A + B + C are farmed. Toggle "Show full info when completed" to keep the detailed table visible.</div>'
+        : ''
+    );
   }
 
   function renderDrops(rotation, page = 1) {
@@ -477,6 +505,9 @@ $(document).ready(() => {
     $(SELECTORS.missionProgress).html(
       `<span>${unobtained.length} items left</span><span>${completion}% complete</span>`
     );
+
+    const showCompletedCard = hasFullRotationCycle() && isMissionFullyFarmed();
+    updateMissionCompleteMode(showCompletedCard);
 
     const shouldShowObtained = !$(SELECTORS.hideObtained).is(':checked') && obtained.length > 0;
     $(SELECTORS.obtainedTable).toggle(shouldShowObtained);
@@ -782,6 +813,12 @@ $(document).ready(() => {
 
   $(document).on('click', '.planner-warframe-row', function onWarframeRowClick() {
     renderWarframeParts($(this).data('warframe'));
+  });
+
+  $(SELECTORS.showInfoWhenComplete).on('change', function onShowInfoToggle() {
+    showInfoWhenComplete = $(this).is(':checked');
+    saveShowInfoWhenComplete();
+    renderDrops(currentRotation, dropPage);
   });
 
   $(SELECTORS.hideObtained).on('change', () => renderDrops(currentRotation, 1));
