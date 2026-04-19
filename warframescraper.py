@@ -90,8 +90,9 @@ def scrape_warframe_data(html_path):
             "mission": fallback['mission'],
             "type": fallback['type'],
             "rotation": "N/A",
-            "item": "No unique drop-table reward listed",
-            "chance": "N/A"
+            "item": "No drop rewards left",
+            "chance": "N/A",
+            "isNoDropPlaceholder": True
         })
 
     return all_data
