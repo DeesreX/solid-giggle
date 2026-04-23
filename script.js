@@ -4,7 +4,8 @@ $(document).ready(() => {
     checkedItems: 'wf_checked_items',
     preferredPartMission: 'wf_preferred_part_mission',
     dockLayout: 'wf_dock_layout',
-    missionAttempts: 'wf_mission_attempts'
+    missionAttempts: 'wf_mission_attempts',
+    ownedWarframes: 'wf_owned_warframes'
   };
 
   const ITEMS_PER_PAGE = 10;
@@ -32,6 +33,8 @@ $(document).ready(() => {
     mainPinBtn: '#mainPinBtn',
     pinnedList: '#pinnedList',
     clearPins: '#clearPins',
+    warframeTrackerCount: '#warframeTrackerCount',
+    warframeTrackerList: '#warframeTrackerList',
     runCounterLabel: '#runCounterLabel',
     addRunBtn: '#addRunBtn',
     resetRunBtn: '#resetRunBtn'
@@ -58,6 +61,7 @@ $(document).ready(() => {
   let checkedItems = JSON.parse(localStorage.getItem(STORAGE_KEYS.checkedItems)) || {};
   let preferredPartMission = JSON.parse(localStorage.getItem(STORAGE_KEYS.preferredPartMission)) || {};
   let missionAttempts = JSON.parse(localStorage.getItem(STORAGE_KEYS.missionAttempts)) || {};
+  let ownedWarframes = JSON.parse(localStorage.getItem(STORAGE_KEYS.ownedWarframes)) || {};
 
   const savePins = () => localStorage.setItem(STORAGE_KEYS.pins, JSON.stringify(pinnedMissions));
   const saveCheckedItems = () => localStorage.setItem(STORAGE_KEYS.checkedItems, JSON.stringify(checkedItems));
@@ -67,9 +71,12 @@ $(document).ready(() => {
   const saveMissionAttempts = () => (
     localStorage.setItem(STORAGE_KEYS.missionAttempts, JSON.stringify(missionAttempts))
   );
+  const saveOwnedWarframes = () => (
+    localStorage.setItem(STORAGE_KEYS.ownedWarframes, JSON.stringify(ownedWarframes))
+  );
 
   const getDefaultLayout = () => ({
-    order: ['searchSection', 'plannerSection', 'missionSection', 'pinnedSection'],
+    order: ['searchSection', 'plannerSection', 'missionSection', 'pinnedSection', 'trackerSection'],
     hidden: [],
     gridPreset: 'balanced'
   });
@@ -98,7 +105,7 @@ $(document).ready(() => {
   }
 
   function syncPanelGridAreas(order) {
-    const areaSlots = ['search', 'planner', 'mission', 'pinned'];
+    const areaSlots = ['search', 'planner', 'mission', 'pinned', 'tracker'];
 
     $('#workspaceGrid .dock-panel').each(function resetArea() {
       this.style.gridArea = 'auto';
@@ -128,22 +135,22 @@ $(document).ready(() => {
     const py = clamp(y);
 
     if (preset === 'columns') {
-      const column = Math.floor(px * 4);
-      return ['search', 'planner', 'mission', 'pinned'][column] || 'search';
+      const column = Math.floor(px * 5);
+      return ['search', 'planner', 'mission', 'pinned', 'tracker'][column] || 'search';
     }
 
     if (preset === 'mission-focus') {
       if (px >= 0.5) return 'mission';
       if (py < 1 / 3) return 'search';
       if (py < 2 / 3) return 'planner';
-      return 'pinned';
+      return 'tracker';
     }
 
     if (preset === 'planner-focus') {
       if (px < 0.5) return 'planner';
       if (py < 1 / 3) return 'mission';
       if (py < 2 / 3) return 'search';
-      return 'pinned';
+      return 'tracker';
     }
 
     const isRight = px >= 0.5;
@@ -151,11 +158,11 @@ $(document).ready(() => {
     if (!isRight && !isBottom) return 'search';
     if (isRight && !isBottom) return 'planner';
     if (!isRight && isBottom) return 'mission';
-    return 'pinned';
+    return py < 0.75 ? 'pinned' : 'tracker';
   }
 
   function movePanelToArea(panelId, areaName) {
-    const areaSlots = ['search', 'planner', 'mission', 'pinned'];
+    const areaSlots = ['search', 'planner', 'mission', 'pinned', 'tracker'];
     const targetIndex = areaSlots.indexOf(areaName);
     if (targetIndex === -1) return;
 
@@ -347,6 +354,7 @@ $(document).ready(() => {
       warframeIndex = buildWarframeIndex(fullData);
       setupTable();
       renderPinnedList();
+      renderWarframeTracker();
       renderPlannerResults('');
       showToast('Data loaded. Pick a mission to get started.');
     } catch (err) {
@@ -690,6 +698,34 @@ $(document).ready(() => {
     });
   }
 
+  function renderWarframeTracker() {
+    const frameNames = Object.keys(warframeIndex).sort((a, b) => a.localeCompare(b));
+    const ownedCount = frameNames.filter((name) => ownedWarframes[name]).length;
+    $(SELECTORS.warframeTrackerCount).text(`${ownedCount}/${frameNames.length} owned`);
+
+    if (!frameNames.length) {
+      $(SELECTORS.warframeTrackerList).html('<div class="empty-msg">No farmable Warframes found.</div>');
+      return;
+    }
+
+    const html = frameNames.map((name) => {
+      const isOwned = Boolean(ownedWarframes[name]);
+      return `
+        <button class="planner-row warframe-tracker-row ${isOwned ? 'is-owned' : ''}" data-warframe="${name}">
+          <div>
+            <strong>${name}</strong>
+            <small>Click to mark ${isOwned ? 'not owned' : 'owned'}</small>
+          </div>
+          <div class="planner-metrics">
+            <span class="chance">${isOwned ? 'Owned' : 'Missing'}</span>
+          </div>
+        </button>
+      `;
+    }).join('');
+
+    $(SELECTORS.warframeTrackerList).html(html);
+  }
+
   function renderPlannerResults(query) {
     const warframesOnly = $(SELECTORS.plannerWarframeOnly).is(':checked');
     if (warframesOnly) {
@@ -912,6 +948,17 @@ $(document).ready(() => {
 
   $(document).on('click', '.planner-warframe-row', function onWarframeRowClick() {
     renderWarframeParts($(this).data('warframe'));
+  });
+
+  $(document).on('click', '.warframe-tracker-row', function onWarframeTrackerRowClick() {
+    const warframeName = $(this).data('warframe');
+    if (!warframeName) return;
+
+    ownedWarframes[warframeName] = !ownedWarframes[warframeName];
+    if (!ownedWarframes[warframeName]) delete ownedWarframes[warframeName];
+    saveOwnedWarframes();
+    renderWarframeTracker();
+    showToast(`${warframeName} marked as ${ownedWarframes[warframeName] ? 'owned' : 'not owned'}.`);
   });
 
   $(SELECTORS.hideObtained).on('change', () => renderDrops(currentRotation, 1));

@@ -182,32 +182,34 @@ body {
   grid-area: pinned;
 }
 
+#trackerSection {
+  grid-area: tracker;
+}
+
 .workspace-grid.layout-balanced {
-  grid-template-columns: repeat(2, minmax(300px, 1fr));
+  grid-template-columns: repeat(3, minmax(280px, 1fr));
   grid-template-areas:
-    "search planner"
-    "mission pinned";
+    "search planner mission"
+    "pinned tracker mission";
 }
 
 .workspace-grid.layout-mission-focus {
-  grid-template-columns: minmax(280px, 1fr) minmax(420px, 1.6fr);
+  grid-template-columns: minmax(260px, 1fr) minmax(260px, 1fr) minmax(420px, 1.8fr);
   grid-template-areas:
-    "search mission"
-    "planner mission"
-    "pinned mission";
+    "search planner mission"
+    "pinned tracker mission";
 }
 
 .workspace-grid.layout-planner-focus {
-  grid-template-columns: minmax(280px, 1.4fr) minmax(300px, 1fr);
+  grid-template-columns: minmax(360px, 1.5fr) minmax(260px, 1fr) minmax(260px, 1fr);
   grid-template-areas:
-    "planner mission"
-    "planner search"
-    "planner pinned";
+    "planner mission search"
+    "planner pinned tracker";
 }
 
 .workspace-grid.layout-columns {
-  grid-template-columns: repeat(4, minmax(220px, 1fr));
-  grid-template-areas: "search planner mission pinned";
+  grid-template-columns: repeat(5, minmax(220px, 1fr));
+  grid-template-areas: "search planner mission pinned tracker";
 }
 
 .workspace-grid[class*="preview-layout-"] .dock-panel {
@@ -619,6 +621,16 @@ table.dataTable.no-footer {
   font-size: 12px;
 }
 
+.warframe-tracker-list {
+  display: grid;
+  gap: 8px;
+}
+
+.warframe-tracker-row.is-owned {
+  border-color: rgb(63 185 80 / 65%);
+  background: rgb(63 185 80 / 10%);
+}
+
 .toast {
   position: fixed;
   right: 24px;
@@ -649,7 +661,8 @@ table.dataTable.no-footer {
       "search"
       "planner"
       "mission"
-      "pinned" !important;
+      "pinned"
+      "tracker" !important;
   }
 
   .layout-presets {

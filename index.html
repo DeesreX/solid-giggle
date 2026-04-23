@@ -24,6 +24,7 @@
       <button class="layout-toggle-btn" data-target="searchSection">Search Left</button>
       <button class="layout-toggle-btn" data-target="plannerSection">Farm Planner</button>
       <button class="layout-toggle-btn" data-target="pinnedSection">Pinned</button>
+      <button class="layout-toggle-btn" data-target="trackerSection">Warframe Tracker</button>
       <button class="layout-toggle-btn" data-target="missionSection">Mission Details</button>
       <button id="resetLayoutBtn" class="secondary-btn">Reset layout</button>
     </div>
@@ -145,6 +146,17 @@
           <button id="clearPins" class="clear-btn">CLEAR ALL</button>
         </div>
         <div id="pinnedList"></div>
+      </div>
+    </section>
+
+    <section id="trackerSection" class="dock-panel" draggable="true">
+      <div class="dock-header"><span class="drag-handle">⋮⋮</span>Warframe tracker</div>
+      <div class="dock-content panel-right">
+        <div class="pinned-header">
+          <h3>Warframe Tracker</h3>
+          <span id="warframeTrackerCount" class="result-count"></span>
+        </div>
+        <div id="warframeTrackerList" class="warframe-tracker-list"></div>
       </div>
     </section>
   </div>
