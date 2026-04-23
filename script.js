@@ -120,6 +120,58 @@ $(document).ready(() => {
     saveLayout(layout);
   }
 
+  function getAreaFromPointerPosition(preset, gridRect, clientX, clientY) {
+    const x = (clientX - gridRect.left) / gridRect.width;
+    const y = (clientY - gridRect.top) / gridRect.height;
+    const clamp = (value) => Math.max(0, Math.min(0.9999, value));
+    const px = clamp(x);
+    const py = clamp(y);
+
+    if (preset === 'columns') {
+      const column = Math.floor(px * 4);
+      return ['search', 'planner', 'mission', 'pinned'][column] || 'search';
+    }
+
+    if (preset === 'mission-focus') {
+      if (px >= 0.5) return 'mission';
+      if (py < 1 / 3) return 'search';
+      if (py < 2 / 3) return 'planner';
+      return 'pinned';
+    }
+
+    if (preset === 'planner-focus') {
+      if (px < 0.5) return 'planner';
+      if (py < 1 / 3) return 'mission';
+      if (py < 2 / 3) return 'search';
+      return 'pinned';
+    }
+
+    const isRight = px >= 0.5;
+    const isBottom = py >= 0.5;
+    if (!isRight && !isBottom) return 'search';
+    if (isRight && !isBottom) return 'planner';
+    if (!isRight && isBottom) return 'mission';
+    return 'pinned';
+  }
+
+  function movePanelToArea(panelId, areaName) {
+    const areaSlots = ['search', 'planner', 'mission', 'pinned'];
+    const targetIndex = areaSlots.indexOf(areaName);
+    if (targetIndex === -1) return;
+
+    const $grid = $('#workspaceGrid');
+    const currentOrder = $grid.children('.dock-panel').map((_, el) => el.id).get();
+    const currentIndex = currentOrder.indexOf(panelId);
+    if (currentIndex === -1 || currentIndex === targetIndex) return;
+
+    const nextOrder = currentOrder.filter((id) => id !== panelId);
+    nextOrder.splice(targetIndex, 0, panelId);
+    nextOrder.forEach((id) => {
+      const panel = document.getElementById(id);
+      if (panel) $grid.append(panel);
+    });
+  }
+
   function applyGridPreset(preset) {
     const presetClasses = ['layout-balanced', 'layout-mission-focus', 'layout-planner-focus', 'layout-columns'];
     const selectedPresetClass = `layout-${preset}`;
@@ -204,6 +256,12 @@ $(document).ready(() => {
       $(this).addClass('drop-target');
     });
 
+    $grid.on('dragover', function onGridDragOver(e) {
+      if ($(e.target).closest('.dock-panel').length) return;
+      e.preventDefault();
+      $('.dock-panel').removeClass('drop-target');
+    });
+
     $grid.on('drop', '.dock-panel', function onDrop(e) {
       e.preventDefault();
       if (!dragId || dragId === this.id) return;
@@ -221,6 +279,24 @@ $(document).ready(() => {
 
     $grid.on('dragleave', '.dock-panel', function onDragLeave() {
       $(this).removeClass('drop-target');
+    });
+
+    $grid.on('drop', function onGridDrop(e) {
+      if ($(e.target).closest('.dock-panel').length) return;
+      e.preventDefault();
+      if (!dragId) return;
+
+      const gridRect = this.getBoundingClientRect();
+      const layout = readLayout();
+      const areaName = getAreaFromPointerPosition(
+        layout.gridPreset,
+        gridRect,
+        e.originalEvent.clientX,
+        e.originalEvent.clientY
+      );
+
+      movePanelToArea(dragId, areaName);
+      $('.dock-panel').removeClass('drop-target');
     });
   }
 
