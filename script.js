@@ -97,10 +97,26 @@ $(document).ready(() => {
     });
   }
 
+  function syncPanelGridAreas(order) {
+    const areaSlots = ['search', 'planner', 'mission', 'pinned'];
+
+    $('#workspaceGrid .dock-panel').each(function resetArea() {
+      this.style.gridArea = 'auto';
+    });
+
+    order.forEach((panelId, index) => {
+      const areaName = areaSlots[index];
+      if (!areaName) return;
+      const panel = document.getElementById(panelId);
+      if (panel) panel.style.gridArea = areaName;
+    });
+  }
+
   function persistCurrentLayoutOrder() {
     const layout = readLayout();
     layout.order = $('#workspaceGrid .dock-panel').map((_, el) => el.id).get();
     layout.hidden = $('#workspaceGrid .dock-panel.hidden-section').map((_, el) => el.id).get();
+    syncPanelGridAreas(layout.order);
     saveLayout(layout);
   }
 
@@ -121,6 +137,9 @@ $(document).ready(() => {
       const $panel = $(`#${panelId}`);
       if ($panel.length) $grid.append($panel);
     });
+
+    const orderedPanelIds = $grid.children('.dock-panel').map((_, el) => el.id).get();
+    syncPanelGridAreas(orderedPanelIds);
 
     $panels.each(function applyHiddenState() {
       const sectionId = this.id;
