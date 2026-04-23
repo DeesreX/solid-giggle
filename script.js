@@ -184,6 +184,17 @@ $(document).ready(() => {
     const layout = readLayout();
     const $grid = $('#workspaceGrid');
     const $panels = $grid.children('.dock-panel');
+    const $gridDropPreview = $('<div class="grid-drop-preview" aria-hidden="true"></div>');
+    $grid.append($gridDropPreview);
+
+    const showGridDropPreview = (areaName) => {
+      if (!areaName) return;
+      $gridDropPreview.css('grid-area', areaName).addClass('active');
+    };
+
+    const hideGridDropPreview = () => {
+      $gridDropPreview.removeClass('active');
+    };
 
     layout.order.forEach((panelId) => {
       const $panel = $(`#${panelId}`);
@@ -246,6 +257,7 @@ $(document).ready(() => {
     $grid.on('dragend', '.dock-panel', function onDragEnd() {
       $(this).removeClass('dragging');
       $('.dock-panel').removeClass('drop-target');
+      hideGridDropPreview();
       dragId = '';
       persistCurrentLayoutOrder();
     });
@@ -253,6 +265,7 @@ $(document).ready(() => {
     $grid.on('dragover', '.dock-panel', function onDragOver(e) {
       e.preventDefault();
       $('.dock-panel').removeClass('drop-target');
+      hideGridDropPreview();
       $(this).addClass('drop-target');
     });
 
@@ -260,6 +273,21 @@ $(document).ready(() => {
       if ($(e.target).closest('.dock-panel').length) return;
       e.preventDefault();
       $('.dock-panel').removeClass('drop-target');
+
+      if (!dragId) {
+        hideGridDropPreview();
+        return;
+      }
+
+      const gridRect = this.getBoundingClientRect();
+      const layoutState = readLayout();
+      const areaName = getAreaFromPointerPosition(
+        layoutState.gridPreset,
+        gridRect,
+        e.originalEvent.clientX,
+        e.originalEvent.clientY
+      );
+      showGridDropPreview(areaName);
     });
 
     $grid.on('drop', '.dock-panel', function onDrop(e) {
@@ -297,6 +325,13 @@ $(document).ready(() => {
 
       movePanelToArea(dragId, areaName);
       $('.dock-panel').removeClass('drop-target');
+      hideGridDropPreview();
+    });
+
+    $grid.on('dragleave', function onGridDragLeave(e) {
+      const nextTarget = e.relatedTarget;
+      if (nextTarget && this.contains(nextTarget)) return;
+      hideGridDropPreview();
     });
   }
 
