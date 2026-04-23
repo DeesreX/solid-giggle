@@ -133,6 +133,18 @@ body {
   background: rgb(88 166 255 / 8%);
 }
 
+.grid-drop-preview {
+  display: none;
+  pointer-events: none;
+  border: 2px dashed rgb(88 166 255 / 75%);
+  border-radius: 8px;
+  background: rgb(88 166 255 / 10%);
+}
+
+.grid-drop-preview.active {
+  display: block;
+}
+
 .dock-header {
   display: flex;
   align-items: center;

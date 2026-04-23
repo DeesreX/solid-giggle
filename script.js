@@ -97,11 +97,79 @@ $(document).ready(() => {
     });
   }
 
+  function syncPanelGridAreas(order) {
+    const areaSlots = ['search', 'planner', 'mission', 'pinned'];
+
+    $('#workspaceGrid .dock-panel').each(function resetArea() {
+      this.style.gridArea = 'auto';
+    });
+
+    order.forEach((panelId, index) => {
+      const areaName = areaSlots[index];
+      if (!areaName) return;
+      const panel = document.getElementById(panelId);
+      if (panel) panel.style.gridArea = areaName;
+    });
+  }
+
   function persistCurrentLayoutOrder() {
     const layout = readLayout();
     layout.order = $('#workspaceGrid .dock-panel').map((_, el) => el.id).get();
     layout.hidden = $('#workspaceGrid .dock-panel.hidden-section').map((_, el) => el.id).get();
+    syncPanelGridAreas(layout.order);
     saveLayout(layout);
+  }
+
+  function getAreaFromPointerPosition(preset, gridRect, clientX, clientY) {
+    const x = (clientX - gridRect.left) / gridRect.width;
+    const y = (clientY - gridRect.top) / gridRect.height;
+    const clamp = (value) => Math.max(0, Math.min(0.9999, value));
+    const px = clamp(x);
+    const py = clamp(y);
+
+    if (preset === 'columns') {
+      const column = Math.floor(px * 4);
+      return ['search', 'planner', 'mission', 'pinned'][column] || 'search';
+    }
+
+    if (preset === 'mission-focus') {
+      if (px >= 0.5) return 'mission';
+      if (py < 1 / 3) return 'search';
+      if (py < 2 / 3) return 'planner';
+      return 'pinned';
+    }
+
+    if (preset === 'planner-focus') {
+      if (px < 0.5) return 'planner';
+      if (py < 1 / 3) return 'mission';
+      if (py < 2 / 3) return 'search';
+      return 'pinned';
+    }
+
+    const isRight = px >= 0.5;
+    const isBottom = py >= 0.5;
+    if (!isRight && !isBottom) return 'search';
+    if (isRight && !isBottom) return 'planner';
+    if (!isRight && isBottom) return 'mission';
+    return 'pinned';
+  }
+
+  function movePanelToArea(panelId, areaName) {
+    const areaSlots = ['search', 'planner', 'mission', 'pinned'];
+    const targetIndex = areaSlots.indexOf(areaName);
+    if (targetIndex === -1) return;
+
+    const $grid = $('#workspaceGrid');
+    const currentOrder = $grid.children('.dock-panel').map((_, el) => el.id).get();
+    const currentIndex = currentOrder.indexOf(panelId);
+    if (currentIndex === -1 || currentIndex === targetIndex) return;
+
+    const nextOrder = currentOrder.filter((id) => id !== panelId);
+    nextOrder.splice(targetIndex, 0, panelId);
+    nextOrder.forEach((id) => {
+      const panel = document.getElementById(id);
+      if (panel) $grid.append(panel);
+    });
   }
 
   function applyGridPreset(preset) {
@@ -116,11 +184,25 @@ $(document).ready(() => {
     const layout = readLayout();
     const $grid = $('#workspaceGrid');
     const $panels = $grid.children('.dock-panel');
+    const $gridDropPreview = $('<div class="grid-drop-preview" aria-hidden="true"></div>');
+    $grid.append($gridDropPreview);
+
+    const showGridDropPreview = (areaName) => {
+      if (!areaName) return;
+      $gridDropPreview.css('grid-area', areaName).addClass('active');
+    };
+
+    const hideGridDropPreview = () => {
+      $gridDropPreview.removeClass('active');
+    };
 
     layout.order.forEach((panelId) => {
       const $panel = $(`#${panelId}`);
       if ($panel.length) $grid.append($panel);
     });
+
+    const orderedPanelIds = $grid.children('.dock-panel').map((_, el) => el.id).get();
+    syncPanelGridAreas(orderedPanelIds);
 
     $panels.each(function applyHiddenState() {
       const sectionId = this.id;
@@ -175,6 +257,7 @@ $(document).ready(() => {
     $grid.on('dragend', '.dock-panel', function onDragEnd() {
       $(this).removeClass('dragging');
       $('.dock-panel').removeClass('drop-target');
+      hideGridDropPreview();
       dragId = '';
       persistCurrentLayoutOrder();
     });
@@ -182,7 +265,29 @@ $(document).ready(() => {
     $grid.on('dragover', '.dock-panel', function onDragOver(e) {
       e.preventDefault();
       $('.dock-panel').removeClass('drop-target');
+      hideGridDropPreview();
       $(this).addClass('drop-target');
+    });
+
+    $grid.on('dragover', function onGridDragOver(e) {
+      if ($(e.target).closest('.dock-panel').length) return;
+      e.preventDefault();
+      $('.dock-panel').removeClass('drop-target');
+
+      if (!dragId) {
+        hideGridDropPreview();
+        return;
+      }
+
+      const gridRect = this.getBoundingClientRect();
+      const layoutState = readLayout();
+      const areaName = getAreaFromPointerPosition(
+        layoutState.gridPreset,
+        gridRect,
+        e.originalEvent.clientX,
+        e.originalEvent.clientY
+      );
+      showGridDropPreview(areaName);
     });
 
     $grid.on('drop', '.dock-panel', function onDrop(e) {
@@ -202,6 +307,31 @@ $(document).ready(() => {
 
     $grid.on('dragleave', '.dock-panel', function onDragLeave() {
       $(this).removeClass('drop-target');
+    });
+
+    $grid.on('drop', function onGridDrop(e) {
+      if ($(e.target).closest('.dock-panel').length) return;
+      e.preventDefault();
+      if (!dragId) return;
+
+      const gridRect = this.getBoundingClientRect();
+      const layout = readLayout();
+      const areaName = getAreaFromPointerPosition(
+        layout.gridPreset,
+        gridRect,
+        e.originalEvent.clientX,
+        e.originalEvent.clientY
+      );
+
+      movePanelToArea(dragId, areaName);
+      $('.dock-panel').removeClass('drop-target');
+      hideGridDropPreview();
+    });
+
+    $grid.on('dragleave', function onGridDragLeave(e) {
+      const nextTarget = e.relatedTarget;
+      if (nextTarget && this.contains(nextTarget)) return;
+      hideGridDropPreview();
     });
   }
 
