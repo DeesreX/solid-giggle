@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manage Warframe Codex Entries</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="codex-page">
+  <div class="site-nav">
+    <a href="index.html" class="site-nav-link">Drop Explorer</a>
+    <a href="allframes.html" class="site-nav-link">All Frames Codex</a>
+    <a href="allframes-manage.html" class="site-nav-link active" aria-current="page">Manage Frames</a>
+  </div>
+
+  <main class="codex-wrapper">
+    <header class="codex-header">
+      <h1>Manage Frames</h1>
+      <p>Add, update, and remove codex entries saved in your browser.</p>
+    </header>
+
+    <section class="codex-section">
+      <h2 id="formTitle">Add a frame</h2>
+      <form id="frameForm" class="manage-form">
+        <input type="hidden" id="frameId">
+
+        <label for="frameName">Name</label>
+        <input id="frameName" type="text" required placeholder="e.g. Saryn">
+
+        <label for="frameRole">Role</label>
+        <input id="frameRole" type="text" required placeholder="e.g. Damage / DoT">
+
+        <label for="frameAcquisition">Acquisition</label>
+        <input id="frameAcquisition" type="text" required placeholder="Where to get the frame">
+
+        <label for="frameFocus">Focus</label>
+        <input id="frameFocus" type="text" required placeholder="Core strengths">
+
+        <label for="frameNotes">Codex Notes</label>
+        <textarea id="frameNotes" rows="3" required placeholder="Notes, builds, synergy, etc."></textarea>
+
+        <div class="form-actions">
+          <button type="submit" class="secondary-btn">Save Frame</button>
+          <button type="button" id="cancelEdit" class="secondary-btn">Cancel Edit</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="codex-section">
+      <h2>Current entries</h2>
+      <div id="manageTableWrap"></div>
+    </section>
+  </main>
+
+  <script src="allframes-manage.js"></script>
+</body>
+</html>
