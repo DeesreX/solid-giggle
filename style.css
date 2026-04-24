@@ -749,3 +749,40 @@ table.dataTable.no-footer {
 .with-site-nav .workspace-grid {
   height: calc(100dvh - 108px);
 }
+
+.manage-form {
+  display: grid;
+  gap: 8px;
+}
+
+.manage-form input,
+.manage-form textarea {
+  padding: 8px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #0f141c;
+  color: var(--text);
+}
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.manage-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.manage-table th,
+.manage-table td {
+  border: 1px solid var(--border);
+  padding: 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.manage-table th {
+  background: #161b22;
+}

@@ -10,54 +10,18 @@
   <div class="site-nav">
     <a href="index.html" class="site-nav-link">Drop Explorer</a>
     <a href="allframes.html" class="site-nav-link active" aria-current="page">All Frames Codex</a>
+    <a href="allframes-manage.html" class="site-nav-link">Manage Frames</a>
   </div>
 
   <main class="codex-wrapper">
     <header class="codex-header">
       <h1>All Frames Codex</h1>
-      <p>Starter entries for a Warframe collection page. Add more cards as new frames are introduced.</p>
+      <p>View mode for your frame entries. Use <strong>Manage Frames</strong> to add/edit/delete.</p>
     </header>
 
-    <section class="codex-grid" aria-label="Warframe entries">
-      <article class="frame-card">
-        <h2>Excalibur</h2>
-        <p class="frame-role">Balanced Starter</p>
-        <ul>
-          <li><strong>Acquisition:</strong> Mars (War boss fight)</li>
-          <li><strong>Focus:</strong> Melee burst + crowd control</li>
-          <li><strong>Codex Notes:</strong> Great baseline frame to compare others against.</li>
-        </ul>
-      </article>
-
-      <article class="frame-card">
-        <h2>Volt</h2>
-        <p class="frame-role">Speed / Utility</p>
-        <ul>
-          <li><strong>Acquisition:</strong> Clan Dojo (Tenno Lab)</li>
-          <li><strong>Focus:</strong> Team speed, shield play, electric damage</li>
-          <li><strong>Codex Notes:</strong> Common pick for fast farming and Eidolon roles.</li>
-        </ul>
-      </article>
-
-      <article class="frame-card">
-        <h2>Rhino</h2>
-        <p class="frame-role">Tank / Team Buff</p>
-        <ul>
-          <li><strong>Acquisition:</strong> Venus (Fossa boss fight)</li>
-          <li><strong>Focus:</strong> Survivability + damage buffing</li>
-          <li><strong>Codex Notes:</strong> Beginner-friendly and useful all the way into endgame.</li>
-        </ul>
-      </article>
-    </section>
-
-    <section class="codex-section">
-      <h2>How to add new entries</h2>
-      <ol>
-        <li>Copy one <code>&lt;article class="frame-card"&gt;...&lt;/article&gt;</code> block.</li>
-        <li>Update frame name, role, acquisition, and notes.</li>
-        <li>Paste it inside the <code>.codex-grid</code> section.</li>
-      </ol>
-    </section>
+    <section id="framesList" class="codex-grid" aria-label="Warframe entries"></section>
   </main>
+
+  <script src="allframes.js"></script>
 </body>
 </html>
