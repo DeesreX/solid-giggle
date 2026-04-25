@@ -7,6 +7,7 @@
       name: 'Excalibur',
       role: 'Balanced Starter',
       acquisition: 'Mars (War boss fight)',
+      mission: 'War (Assassination)',
       focus: 'Melee burst + crowd control',
       notes: 'Great baseline frame to compare others against.'
     },
@@ -15,6 +16,7 @@
       name: 'Volt',
       role: 'Speed / Utility',
       acquisition: 'Clan Dojo (Tenno Lab)',
+      mission: 'N/A (Clan Research)',
       focus: 'Team speed, shield play, electric damage',
       notes: 'Common pick for fast farming and Eidolon roles.'
     },
@@ -23,6 +25,7 @@
       name: 'Rhino',
       role: 'Tank / Team Buff',
       acquisition: 'Venus (Fossa boss fight)',
+      mission: 'Fossa, Venus (Jackal Assassination)',
       focus: 'Survivability + damage buffing',
       notes: 'Beginner-friendly and useful all the way into endgame.'
     }
@@ -38,6 +41,7 @@
     name: document.getElementById('frameName'),
     role: document.getElementById('frameRole'),
     acquisition: document.getElementById('frameAcquisition'),
+    mission: document.getElementById('frameMission'),
     focus: document.getElementById('frameFocus'),
     notes: document.getElementById('frameNotes')
   };
@@ -59,6 +63,13 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(frames));
   }
 
+  function normalizeFrame(frame) {
+    return {
+      ...frame,
+      mission: (frame.mission || '').trim()
+    };
+  }
+
   function clearForm() {
     frameForm.reset();
     fields.id.value = '';
@@ -66,7 +77,7 @@
   }
 
   function renderTable() {
-    const frames = readFrames();
+    const frames = readFrames().map(normalizeFrame);
 
     if (!frames.length) {
       manageTableWrap.innerHTML = '<p>No entries yet.</p>';
@@ -80,6 +91,7 @@
             <th>Name</th>
             <th>Role</th>
             <th>Acquisition</th>
+            <th>Mission</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -89,6 +101,7 @@
               <td>${frame.name}</td>
               <td>${frame.role}</td>
               <td>${frame.acquisition}</td>
+              <td>${frame.mission || '<em>Missing mission</em>'}</td>
               <td>
                 <button class="secondary-btn" data-action="edit" data-id="${frame.id}">Edit</button>
                 <button class="secondary-btn" data-action="delete" data-id="${frame.id}">Delete</button>
@@ -105,6 +118,7 @@
     fields.name.value = frame.name;
     fields.role.value = frame.role;
     fields.acquisition.value = frame.acquisition;
+    fields.mission.value = frame.mission || '';
     fields.focus.value = frame.focus;
     fields.notes.value = frame.notes;
     formTitle.textContent = `Edit ${frame.name}`;
@@ -113,12 +127,13 @@
   frameForm.addEventListener('submit', (event) => {
     event.preventDefault();
 
-    const frames = readFrames();
+    const frames = readFrames().map(normalizeFrame);
     const payload = {
       id: fields.id.value || createId(fields.name.value),
       name: fields.name.value.trim(),
       role: fields.role.value.trim(),
       acquisition: fields.acquisition.value.trim(),
+      mission: fields.mission.value.trim(),
       focus: fields.focus.value.trim(),
       notes: fields.notes.value.trim()
     };
@@ -144,7 +159,7 @@
     const action = button.getAttribute('data-action');
     const id = button.getAttribute('data-id');
 
-    const frames = readFrames();
+    const frames = readFrames().map(normalizeFrame);
     const selected = frames.find((frame) => frame.id === id);
 
     if (!selected) return;
